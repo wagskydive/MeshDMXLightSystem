@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>LED Mesh Controller</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    label { display: block; margin: 0.5rem 0 0.2rem; }
+    input, select { width: 100%; max-width: 200px; padding: 0.3rem; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+  </style>
+</head>
+<body>
+  <h1>LED Mesh Controller Settings</h1>
+  <form id="settingsForm">
+    <label for="universe">Universe:</label>
+    <input type="number" id="universe" name="universe" min="1" max="63999" />
+    
+    <label for="startChannel">Start Channel:</label>
+    <input type="number" id="startChannel" name="startChannel" min="1" max="512" />
+    
+    <label for="ledCount">LED Count:</label>
+    <input type="number" id="ledCount" name="ledCount" min="1" max="1000" />
+    
+    <label for="dmxUniverse">DMX Universe (Output):</label>
+    <input type="number" id="dmxUniverse" name="dmxUniverse" min="1" max="63999" />
+    
+    <label for="mode">Mode:</label>
+    <select id="mode" name="mode">
+      <option value="0">Mesh (Normal)</option>
+      <option value="1">Color Override</option>
+      <option value="2">Effect Override</option>
+      <option value="3">Manual</option>
+    </select>
+    
+    <label><input type="checkbox" id="isRoot" name="isRoot" /> Set as Root Node</label>
+    
+    <button type="submit">Save Settings</button>
+  </form>
+  
+  <p id="status"></p>
+
+  <script>
+    async function loadSettings() {
+      const res = await fetch('/settings');
+      const data = await res.json();
+      document.getElementById('universe').value = data.universe;
+      document.getElementById('startChannel').value = data.startChannel;
+      document.getElementById('ledCount').value = data.ledCount;
+      document.getElementById('dmxUniverse').value = data.dmxUniverse;
+      document.getElementById('mode').value = data.mode;
+      document.getElementById('isRoot').checked = data.isRoot;
+    }
+
+    document.getElementById('settingsForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const data = new URLSearchParams(new FormData(form));
+      const res = await fetch('/settings', { method: 'POST', body: data });
+      const json = await res.json();
+      document.getElementById('status').textContent = json.status;
+    });
+
+    loadSettings();
+  </script>
+</body>
+</html>
