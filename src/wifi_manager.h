@@ -7,6 +7,7 @@ public:
   void begin(const char* ssid, const char* password);
   void connect();
   void startAP();
+  String scanNetworksJson();
   bool isConnected() const;
   int8_t getRSSI() const;
   void loop();

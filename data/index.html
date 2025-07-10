@@ -25,6 +25,7 @@
         <option value="3">Manual</option>
       </select>
     </label><br>
+    <label>Override Color:<br><input type="color" id="overrideColor" name="overrideColor" value="#ff0000" /></label><br>
     <button type="submit">Save Settings</button>
   </form>
 
@@ -38,6 +39,11 @@
       document.getElementById('ledCount').value = data.ledCount;
       document.getElementById('dmxUniverse').value = data.dmxUniverse;
       document.getElementById('mode').value = data.mode;
+      const rgb = '#' +
+        [data.overrideR, data.overrideG, data.overrideB]
+          .map(v => ('0' + Number(v).toString(16)).slice(-2))
+          .join('');
+      document.getElementById('overrideColor').value = rgb;
     }
 
     document.getElementById('configForm').addEventListener('submit', async e => {
@@ -45,7 +51,14 @@
       const formData = new FormData(e.target);
       const params = new URLSearchParams();
       for (const pair of formData.entries()) {
-        params.append(pair[0], pair[1]);
+        if (pair[0] === 'overrideColor') {
+          const c = pair[1].substring(1);
+          params.append('overrideR', parseInt(c.slice(0,2), 16));
+          params.append('overrideG', parseInt(c.slice(2,4), 16));
+          params.append('overrideB', parseInt(c.slice(4,6), 16));
+        } else {
+          params.append(pair[0], pair[1]);
+        }
       }
       const res = await fetch('/settings', {
         method: 'POST',
