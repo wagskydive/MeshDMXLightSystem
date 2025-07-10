@@ -6,64 +6,6 @@
 #include "mesh_network.h"
 #include "webui_server.h"
 #include "effects/effect_wipe.h"
-
-#define LED_PIN 13
-#define LED_COUNT DEFAULT_LED_COUNT
-
-SettingsManager settingsManager;
-WiFiManager wifiManager;
-MeshNetwork* meshNetwork;
-WebUIServer* webServer;
-Adafruit_NeoPixel strip(LED_PIN, LED_COUNT, NEO_GRB + NEO_KHZ800);
-
-EffectWipe effectWipe;
-
-unsigned long lastEffectUpdate = 0;
-const unsigned long effectInterval = 50;
-
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-  Serial.println("Starting ESP32 Mesh LED Node");
-
-  settingsManager.begin();
-  NodeSettings& s = settingsManager.getSettings();
-
-  strip.updateLength(s.ledCount);
-  strip.begin();
-  strip.show();
-
-  wifiManager.begin(s.wifiSSID, s.wifiPassword);
-
-  meshNetwork = new MeshNetwork(wifiManager, settingsManager);
-  meshNetwork->begin();
-
-  webServer = new WebUIServer(settingsManager, *meshNetwork);
-  webServer->begin();
-
-  effectWipe.begin(strip);
-
-  Serial.println("Setup complete");
-}
-
-void loop() {
-  wifiManager.loop();
-  meshNetwork->loop();
-  webServer->loop();
-
-  if (millis() - lastEffectUpdate > effectInterval) {
-    effectWipe.update(strip);
-    lastEffectUpdate = millis();
-  }
-}
-#include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
-
-#include "settings_manager.h"
-#include "wifi_manager.h"
-#include "mesh_network.h"
-#include "webui_server.h"
-#include "effects/effect_wipe.h"
 #include "artnet_receiver.h"
 
 #define LED_PIN 13
@@ -74,7 +16,7 @@ MeshNetwork* meshNetwork;
 WebUIServer* webServer;
 ArtNetReceiver* artnetReceiver;
 
-Adafruit_NeoPixel strip(LED_PIN, DEFAULT_LED_COUNT, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip(DEFAULT_LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 EffectWipe effectWipe;
 
