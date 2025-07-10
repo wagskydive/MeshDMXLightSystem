@@ -1,0 +1,22 @@
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+monitor_speed = 115200
+upload_speed = 921600
+build_flags = 
+  -DCORE_DEBUG_LEVEL=3
+  -DBOARD_HAS_PSRAM
+lib_deps = 
+  bblanchon/ArduinoJson@^6.21.3
+  me-no-dev/ESP Async WebServer @ ^1.2.3
+  me-no-dev/AsyncTCP @ ^1.1.1
+  adafruit/Adafruit NeoPixel @ ^1.11.0
+  paulstoffregen/DMXSerial @ ^1.0.0
+  ayushsharma82/Espalexa @ ^2.6.0
+  esphome/ESPAsyncWebServer-esphome @ ^2.0.0
+  lorol/ESPAsyncWebServer @ ^1.2.3
+  https://github.com/espressif/arduino-esp32.git
+
+; Optional for WebUI SPIFFS
+extra_scripts = pre:tools/prebuild_spiffs.py
