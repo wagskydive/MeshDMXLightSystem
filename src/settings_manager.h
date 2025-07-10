@@ -2,6 +2,10 @@
 #include <Preferences.h>
 #include <Arduino.h>
 
+#ifndef DEFAULT_LED_COUNT
+#define DEFAULT_LED_COUNT 60
+#endif
+
 struct NodeSettings {
   uint16_t universe = 1;
   uint16_t startChannel = 1;
