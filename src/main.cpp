@@ -39,7 +39,6 @@ uint8_t neighborCount = 0;
 uint8_t selfMac[6];
 bool inAPMode = false;
 
-// Mesh message types
 enum MeshMsgType : uint8_t {
   MSG_HEARTBEAT = 1,
   MSG_STATE_BROADCAST = 2,
@@ -52,10 +51,8 @@ struct MeshMessage {
   uint16_t universe;
   uint16_t startChannel;
   uint16_t ledCount;
-  // Add more fields as needed
 };
 
-// --- Preferences for WiFi ---
 String wifiSSID = "";
 String wifiPassword = "";
 
@@ -134,14 +131,21 @@ void connectToWiFi() {
   }
 }
 
+uint32_t rootLastSeen = 0;
+uint8_t rootMac[6] = {0,0,0,0,0,0};
+
+bool macLessThan(const uint8_t *a, const uint8_t *b) {
+  for (int i = 0; i < 6; i++) {
+    if (a[i] < b[i]) return true;
+    if (a[i] > b[i]) return false;
+  }
+  return false; // equal
+}
+
 void onDataRecv(const uint8_t * mac_addr, const uint8_t *data, int len) {
-  if (len < sizeof(MeshMessage)) return; // ignore wrong packets
+  if (len < sizeof(MeshMessage)) return;
   MeshMessage msg;
   memcpy(&msg, data, sizeof(MeshMessage));
-
-  // Debug output
-  Serial.print("Received message type: ");
-  Serial.println(msg.type);
 
   // Update neighbor info
   bool found = false;
@@ -166,12 +170,18 @@ void onDataRecv(const uint8_t * mac_addr, const uint8_t *data, int len) {
     neighborCount++;
   }
 
-  // Root selection logic:
-  // If I am not root, and received root heartbeat, track root presence
-  // If root disappears, become root
+  // Handle root heartbeat
+  if (msg.isRoot) {
+    rootLastSeen = millis();
+    memcpy(rootMac, msg.senderMac, 6);
 
-  // TODO: Implement full root election and failover logic here
-
+    // If I'm root and another node with lower MAC claims root, relinquish
+    if (settings.isRoot && macLessThan(msg.senderMac, selfMac)) {
+      Serial.println("Another node with lower MAC claims root, stepping down.");
+      settings.isRoot = false;
+      saveSettings();
+    }
+  }
 }
 
 void sendHeartbeat() {
@@ -183,17 +193,17 @@ void sendHeartbeat() {
   msg.startChannel = settings.startChannel;
   msg.ledCount = settings.ledCount;
 
-  esp_err_t result = esp_now_send(NULL, (uint8_t *)&msg, sizeof(msg)); // broadcast
+  esp_err_t result = esp_now_send(NULL, (uint8_t *)&msg, sizeof(msg));
   if (result == ESP_OK) {
-    Serial.println("Heartbeat sent");
+    Serial.print("Heartbeat sent as ");
+    Serial.println(settings.isRoot ? "ROOT" : "NODE");
   } else {
     Serial.println("Error sending heartbeat");
   }
 }
 
 void setupWebServer() {
-  // ... Same as before, omitted for brevity ...
-  // Add endpoints for /settings, /wifi, etc.
+  // ... keep your previous web server setup here ...
   server.begin();
 }
 
@@ -209,12 +219,10 @@ void setup() {
 
   loadSettings();
 
-  // Init NeoPixel strip
   strip.updateLength(settings.ledCount);
   strip.begin();
   strip.show();
 
-  // Setup ESP-NOW
   WiFi.mode(WIFI_STA);
   esp_now_init();
 
@@ -226,27 +234,29 @@ void setup() {
   if (inAPMode) {
     Serial.println("WebUI: http://192.168.4.1");
   } else {
-    Serial.println("WebUI: http://" + WiFi.localIP().toString());
+    Serial.print("WebUI: http://");
+    Serial.println(WiFi.localIP());
   }
 }
 
 unsigned long lastHeartbeat = 0;
-const unsigned long heartbeatInterval = 3000; // every 3 seconds
+const unsigned long heartbeatInterval = 3000; // 3s
+const unsigned long rootTimeout = 15000; // 15s root heartbeat timeout
 
 void loop() {
-  if (millis() - lastHeartbeat > heartbeatInterval) {
+  unsigned long now = millis();
+
+  if (now - lastHeartbeat > heartbeatInterval) {
     sendHeartbeat();
-    lastHeartbeat = millis();
+    lastHeartbeat = now;
   }
 
-  // Check neighbors timeout (remove old neighbors)
-  unsigned long now = millis();
+  // Remove stale neighbors
   for (int i = 0; i < neighborCount;) {
     if (now - neighbors[i].lastSeen > 10000) {
       Serial.print("Removing stale neighbor: ");
       for (int j=0; j<6; j++) Serial.printf("%02X", neighbors[i].mac[j]);
       Serial.println();
-      // Remove by shifting
       for (int k = i; k < neighborCount -1; k++) {
         neighbors[k] = neighbors[k+1];
       }
@@ -256,7 +266,27 @@ void loop() {
     }
   }
 
-  // TODO: Root failover logic: if no root heartbeats for 15s, become root
+  // Root failover logic:
+  if (!settings.isRoot) {
+    if (now - rootLastSeen > rootTimeout) {
+      Serial.println("Root heartbeat lost, starting election...");
+      // Elect self root if has lowest MAC among neighbors (or no neighbors)
+      bool canBeRoot = true;
+      for (int i = 0; i < neighborCount; i++) {
+        if (macLessThan(neighbors[i].mac, selfMac)) {
+          canBeRoot = false;
+          break;
+        }
+      }
+      if (canBeRoot) {
+        Serial.println("Becoming new root!");
+        settings.isRoot = true;
+        saveSettings();
+        memcpy(rootMac, selfMac, 6);
+        rootLastSeen = now;
+      }
+    }
+  }
 
   delay(50);
 }
