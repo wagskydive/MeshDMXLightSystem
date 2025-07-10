@@ -59,3 +59,14 @@ void WiFiManager::loop() {
     lastCheck = millis();
   }
 }
+
+String WiFiManager::scanNetworksJson() {
+  int n = WiFi.scanNetworks();
+  String json = "[";
+  for (int i = 0; i < n; i++) {
+    if (i > 0) json += ",";
+    json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+  }
+  json += "]";
+  return json;
+}

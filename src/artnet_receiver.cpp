@@ -1,7 +1,8 @@
 #include "artnet_receiver.h"
+#include "dmx_output.h"
 
-ArtNetReceiver::ArtNetReceiver(SettingsManager& settings, Adafruit_NeoPixel& strip)
-  : settingsManager(settings), ledStrip(strip) {}
+ArtNetReceiver::ArtNetReceiver(SettingsManager& settings, Adafruit_NeoPixel& strip, DmxOutput* dmxOut)
+  : settingsManager(settings), ledStrip(strip), dmx(dmxOut) {}
 
 void ArtNetReceiver::begin() {
   WiFiUDP::stopAll();
@@ -29,7 +30,14 @@ void ArtNetReceiver::handle() {
           }
         }
         ledStrip.show();
+        if (dmx) {
+          for (uint16_t i = 0; i < artnet.getLength() && i < 512; i++) {
+            dmx->setChannel(i + 1, data[i]);
+          }
+          dmx->sendFrame(artnet.getLength());
+        }
       }
     }
   }
 }
+
